@@ -18,8 +18,6 @@ from cirq_ionq.calibration import Calibration
 
 from cirq_ionq.ionq_devices import IonQAPIDevice
 
-from cirq_ionq.ionq_gateset import IonQTargetGateset, decompose_all_to_all_connect_ccz_gate
-
 from cirq_ionq.ionq_exceptions import (
     IonQException,
     IonQNotFoundException,
@@ -37,6 +35,11 @@ from cirq_ionq.serializer import Serializer, SerializedProgram
 from cirq_ionq.service import Service
 
 from cirq_ionq.ionq_native_gates import GPIGate, GPI2Gate, MSGate, ZZGate
+
+from cirq_ionq.ionq_gateset import IonQTargetGateset, decompose_all_to_all_connect_ccz_gate
+
+from cirq_ionq.ionq_native_target_gateset import AriaNativeGateset
+from cirq_ionq.ionq_native_target_gateset import ForteNativeGateset
 
 from cirq.protocols.json_serialization import _register_resolver
 from cirq_ionq.json_resolver_cache import _class_resolver_dictionary
