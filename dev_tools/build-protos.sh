@@ -25,11 +25,17 @@ set -e
 trap "{ echo -e '\033[31mFAILED\033[0m'; }" ERR
 
 # Get the working directory to the repo root.
-cd "$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+cd "$(dirname "${BASH_SOURCE[0]}")"
 cd "$(git rev-parse --show-toplevel)"
 
+cd cirq-google || exit $?
+
 # Build protos for each protobuf package.
-for package in cirq/api/google/v1 cirq/api/google/v2 cirq/google/api/v1 cirq/google/api/v2
+for package in cirq_google/api/v1 cirq_google/api/v2
 do
   python -m grpc_tools.protoc -I=. --python_out=. --mypy_out=. ${package}/*.proto
 done
+
+# until this is not merged https://github.com/protocolbuffers/protobuf/pull/7470
+# we manually switch to relative import
+sed -i -E 's/^from cirq.google.api.* import (.*)$/from . import \1/' cirq_google/api/v*/*_pb2.py

@@ -1,3 +1,4 @@
+# pylint: disable=wrong-or-nonexistent-copyright-notice
 """Demonstrates Deutsch's algorithm.
 
 Deutsch's algorithm is one of the simplest demonstrations of quantum parallelism
@@ -38,8 +39,7 @@ def main():
     # Pick a secret 2-bit function and create a circuit to query the oracle.
     secret_function = [random.randint(0, 1) for _ in range(2)]
     oracle = make_oracle(q0, q1, secret_function)
-    print('Secret function:\nf(x) = <{}>'.format(
-        ', '.join(str(e) for e in secret_function)))
+    print(f"Secret function:\nf(x) = <{', '.join(str(e) for e in secret_function)}>")
 
     # Embed the oracle into a quantum circuit querying it exactly once.
     circuit = make_deutsch_circuit(q0, q1, oracle)
@@ -54,7 +54,7 @@ def main():
 
 
 def make_oracle(q0, q1, secret_function):
-    """ Gates implementing the secret function f(x)."""
+    """Gates implementing the secret function f(x)."""
 
     # coverage: ignore
     if secret_function[0]:

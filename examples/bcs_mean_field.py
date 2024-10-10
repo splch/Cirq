@@ -1,3 +1,4 @@
+# pylint: disable=wrong-or-nonexistent-copyright-notice
 # coding=utf-8
 r"""Quantum circuit to prepare the BCS ground states for
 superconductors/superfluids. Such states can be prepared by
@@ -10,9 +11,10 @@ represent spin-up (down) basis states.
 
 The Bogoliubov transformation can be readily implemented by
 applying quantum gates on vertical pairs of qubits, which takes the form
-|BCS⟩ = \prod_k (u_k + v_k c^\dag_{k,↑} c^\dag_{−k,↓}|vac⟩ where |vac⟩ is
-the vacuum state and u_k^2 = (1+ ξ_k/(ξ_k^2+Δ_k^2)^{1/2})/2 and v_k^2
-= (1 - ξ_k/(ξ_k^2+Δ_k^2)^{1/2})/2.
+$|BCS⟩ = \prod_k (u_k + v_k) c^\dagger_{k,↑} c^\dagger_{−k,↓}|vac⟩$ where
+$|vac⟩$ is the vacuum state and
+$u_k^2 = \frac{1}{2}(1+ \frac{ξ_k}{\sqrt{ξ_k^2+Δ_k^2}})$ and
+$v_k^2 = \frac{1}{2}(1 - \frac{ξ_k}{\sqrt{ξ_k^2+Δ_k^2}})$
 
 We use the fast fermionic Fourier transformation (FFFT) to implement the basis
 transformation from the momentum picture to the position picture.
@@ -143,10 +145,10 @@ def main():
     # Number of fermions
     n_fermi = 4
     # Hopping strength between neighboring sites
-    t = 1.
+    t = 1.0
     # On-site interaction strength. It has to be negative (attractive) for the
     # BCS theory to work.
-    u = -4.
+    u = -4.0
     # Calculate the superconducting gap and the angles for BCS
     delta, bog_theta = bcs_parameters(n_site, n_fermi, u, t)
     # Initializing the qubits on a ladder
@@ -160,31 +162,31 @@ def main():
     print('On-site interaction strength = ', u)
     print('Superconducting gap = ', delta, '\n')
 
-    bog_circuit = cirq.Circuit.from_ops(
-        bogoliubov_trans(upper_qubits[i], lower_qubits[i], bog_theta[i])
-        for i in range(n_site))
-    bog_circuit = cirq.google.optimized_for_xmon(bog_circuit)
+    bog_circuit = cirq.Circuit(
+        bogoliubov_trans(upper_qubits[i], lower_qubits[i], bog_theta[i]) for i in range(n_site)
+    )
+    bog_circuit = cirq.optimize_for_target_gateset(bog_circuit, gateset=cirq.CZTargetGateset())
     print('Circuit for the Bogoliubov transformation:')
     print(bog_circuit.to_text_diagram(transpose=True), '\n')
 
     # The inverse fermionic Fourier transformation on the spin-up states
-    print(('Circuit for the inverse fermionic Fourier transformation on the '
-           'spin-up states:'))
-    fourier_circuit_spin_up = cirq.Circuit.from_ops(
-        fermi_fourier_trans_inverse_4(upper_qubits),
-        strategy=cirq.InsertStrategy.EARLIEST)
-    fourier_circuit_spin_up = cirq.google.optimized_for_xmon(
-        fourier_circuit_spin_up)
+    print(('Circuit for the inverse fermionic Fourier transformation on the spin-up states:'))
+    fourier_circuit_spin_up = cirq.Circuit(
+        fermi_fourier_trans_inverse_4(upper_qubits), strategy=cirq.InsertStrategy.EARLIEST
+    )
+    fourier_circuit_spin_up = cirq.optimize_for_target_gateset(
+        fourier_circuit_spin_up, gateset=cirq.CZTargetGateset()
+    )
     print(fourier_circuit_spin_up.to_text_diagram(transpose=True), '\n')
 
     # The inverse fermionic Fourier transformation on the spin-down states
-    print(('Circuit for the inverse fermionic Fourier transformation on the '
-           'spin-down states:'))
-    fourier_circuit_spin_down = cirq.Circuit.from_ops(
-        fermi_fourier_trans_inverse_conjugate_4(lower_qubits),
-        strategy=cirq.InsertStrategy.EARLIEST)
-    fourier_circuit_spin_down = cirq.google.optimized_for_xmon(
-        fourier_circuit_spin_down)
+    print(('Circuit for the inverse fermionic Fourier transformation on the spin-down states:'))
+    fourier_circuit_spin_down = cirq.Circuit(
+        fermi_fourier_trans_inverse_conjugate_4(lower_qubits), strategy=cirq.InsertStrategy.EARLIEST
+    )
+    fourier_circuit_spin_down = cirq.optimize_for_target_gateset(
+        fourier_circuit_spin_down, gateset=cirq.CZTargetGateset()
+    )
     print(fourier_circuit_spin_down.to_text_diagram(transpose=True))
 
 
@@ -203,9 +205,9 @@ def fswap(p, q):
 
 def bogoliubov_trans(p, q, theta):
     r"""The 2-mode Bogoliubov transformation is mapped to two-qubit operations.
-     We use the identity X S^\dag X S X = Y X S^\dag Y S X = X to transform
-     the Hamiltonian XY+YX to XX+YY type. The time evolution of the XX + YY
-     Hamiltonian can be expressed as a power of the iSWAP gate.
+     We use the identity $X S^\dagger X S X = Y X S^\dagger Y S X = X$ to
+     transform the Hamiltonian XY+YX to XX+YY type. The time evolution of the
+     XX + YY Hamiltonian can be expressed as a power of the iSWAP gate.
 
     Args:
         p: the first qubit
@@ -221,7 +223,7 @@ def bogoliubov_trans(p, q, theta):
 
     yield cirq.X(p)
     yield cirq.S(p)
-    yield cirq.ISWAP(p, q)**expo
+    yield cirq.ISWAP(p, q) ** expo
     yield cirq.S(p) ** 1.5
     yield cirq.X(p)
 
@@ -246,9 +248,9 @@ def fermi_fourier_trans_2(p, q):
         q: the second qubit
     """
 
-    yield cirq.Z(p)**1.5
-    yield cirq.ISWAP(q, p)**0.5
-    yield cirq.Z(p)**1.5
+    yield cirq.Z(p) ** 1.5
+    yield cirq.ISWAP(q, p) ** 0.5
+    yield cirq.Z(p) ** 1.5
 
 
 def fermi_fourier_trans_inverse_4(qubits):
@@ -292,7 +294,7 @@ def fermi_fourier_trans_inverse_conjugate_4(qubits):
     yield fswap(qubits[1], qubits[2])
 
 
-def bcs_parameters(n_site, n_fermi, u, t) :
+def bcs_parameters(n_site, n_fermi, u, t):
     """Generate the parameters for the BCS ground state, i.e., the
     superconducting gap and the rotational angles in the Bogoliubov
     transformation.
@@ -317,21 +319,21 @@ def bcs_parameters(n_site, n_fermi, u, t) :
     hop_erg = hop_erg - fermi_erg
 
     def _bcs_gap(x):
-        """Defines the self-consistent equation for the BCS wavefunction.
+        """Defines the self-consistent equation for the BCS state vector.
 
         Args:
             x: the superconducting gap
         """
 
-        s = 0.
+        s = 0.0
         for i in range(n_site):
-            s += 1. / np.sqrt(hop_erg[i] ** 2 + x ** 2)
+            s += 1.0 / np.sqrt(hop_erg[i] ** 2 + x**2)
         return 1 + s * u / (2 * n_site)
 
     # Superconducting gap
-    delta = scipy.optimize.bisect(_bcs_gap, 0.01, 10000. * abs(u))
+    delta = scipy.optimize.bisect(_bcs_gap, 0.01, 10000.0 * abs(u))
     # The amplitude of the double excitation state
-    bcs_v = np.sqrt(0.5 * (1 - hop_erg / np.sqrt(hop_erg ** 2 + delta ** 2)))
+    bcs_v = np.sqrt(0.5 * (1 - hop_erg / np.sqrt(hop_erg**2 + delta**2)))
     # The rotational angle in the Bogoliubov transformation.
     bog_theta = np.arcsin(bcs_v)
 

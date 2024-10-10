@@ -1,3 +1,4 @@
+# pylint: disable=wrong-or-nonexistent-copyright-notice
 """Demonstrates swap networks.
 
 Swap networks are used to get around limited connectivity in a hardware device.
@@ -19,7 +20,7 @@ implied graph is not a subgraph of the hardware adjacency graph.
 
 import itertools
 import random
-from typing import cast, Dict, List, Sequence, Tuple, TypeVar, Union
+from typing import Dict, List, Sequence, Tuple, TypeVar, Union
 
 import cirq
 import cirq.contrib.acquaintance as cca
@@ -31,19 +32,18 @@ LogicalMappingKey = TypeVar('LogicalMappingKey', bound=cirq.Qid)
 LogicalMapping = Dict[LogicalMappingKey, LogicalIndex]
 
 
-def get_random_graph(n_vertices: int,
-                     edge_prob: float = 0.5) -> List[Tuple[int, int]]:
+def get_random_graph(n_vertices: int, edge_prob: float = 0.5) -> List[Tuple[int, int]]:
     return [
-        cast(Tuple[int, int], ij)
-        for ij in itertools.combinations(range(n_vertices), 2)
-        if random.random() <= edge_prob
+        ij for ij in itertools.combinations(range(n_vertices), 2) if random.random() <= edge_prob
     ]
 
 
-def get_phase_sep_circuit(gates: LogicalGates,
-                          qubits: Sequence[cirq.Qid],
-                          initial_mapping: LogicalMapping,
-                          verbose: bool = True):
+def get_phase_sep_circuit(
+    gates: LogicalGates,
+    qubits: Sequence[cirq.Qid],
+    initial_mapping: LogicalMapping,
+    verbose: bool = True,
+):
     # An acquaintance strategy containing permutation gates and acquaintance
     # opportunity gates.
     circuit = cca.complete_acquaintance_strategy(qubits, 2)
@@ -53,7 +53,8 @@ def get_phase_sep_circuit(gates: LogicalGates,
         print('\n\n')
 
     acquaintance_opportunities = cca.get_logical_acquaintance_opportunities(
-        circuit, initial_mapping)
+        circuit, initial_mapping
+    )
     assert set(frozenset(edge) for edge in gates) <= acquaintance_opportunities
 
     cca.expose_acquaintance_gates(circuit)
@@ -86,12 +87,14 @@ def get_phase_sep_circuit(gates: LogicalGates,
     return circuit
 
 
-def get_max_cut_qaoa_circuit(vertices: Sequence[int],
-                             edges: Sequence[Tuple[int, int]],
-                             beta: float,
-                             gamma: float,
-                             use_logical_qubits: bool = False,
-                             verbose: bool = True):
+def get_max_cut_qaoa_circuit(
+    vertices: Sequence[int],
+    edges: Sequence[Tuple[int, int]],
+    beta: float,
+    gamma: float,
+    use_logical_qubits: bool = False,
+    verbose: bool = True,
+):
     """Implement a single round of QAOA for MaxCut using linearly connected
     qubits.
 
@@ -115,30 +118,23 @@ def get_max_cut_qaoa_circuit(vertices: Sequence[int],
     n_vertices = len(vertices)
 
     # G_{i,j} ∝ exp(i gamma (|01><01| + |10><10|))
-    phase_sep_gates = {edge: cirq.ZZ**gamma for edge in edges
-                      }  # type: LogicalMapping
+    phase_sep_gates: LogicalMapping = {edge: cirq.ZZ**gamma for edge in edges}
 
     # Physical qubits
     qubits = cirq.LineQubit.range(n_vertices)
 
     # Mapping from qubits to vertices.
-    initial_mapping = {q: i for i, q in enumerate(qubits)
-                      }  # type: LogicalMapping
+    initial_mapping: LogicalMapping = {q: i for i, q in enumerate(qubits)}
 
     if use_logical_qubits:
-        initial_mapping = {
-            q: cirq.LineQubit(i) for q, i in initial_mapping.items()
-        }
+        initial_mapping = {q: cirq.LineQubit(i) for q, i in initial_mapping.items()}
         phase_sep_gates = {
-            tuple(cirq.LineQubit(i)
-                  for i in e): g
-            for e, g in phase_sep_gates.items()
+            tuple(cirq.LineQubit(i) for i in e): g for e, g in phase_sep_gates.items()
         }
 
-    phase_sep_circuit = get_phase_sep_circuit(phase_sep_gates, qubits,
-                                              initial_mapping, verbose)
+    phase_sep_circuit = get_phase_sep_circuit(phase_sep_gates, qubits, initial_mapping, verbose)
 
-    mixing_circuit = cirq.Circuit.from_ops(cirq.X(q)**beta for q in qubits)
+    mixing_circuit = cirq.Circuit(cirq.X(q) ** beta for q in qubits)
     return phase_sep_circuit + mixing_circuit
 
 
@@ -149,10 +145,14 @@ def main():
     beta, gamma = 0.1, 0.3
     for use_logical_qubits in (True, False):
         verbose = use_logical_qubits
-        circuit = get_max_cut_qaoa_circuit(vertices, edges, beta, gamma,
-                                           use_logical_qubits, verbose)
-        print('1-round QAOA circuit (using {}s as logical indices):'.format(
-            'qubit' if use_logical_qubits else 'integer'))
+        circuit = get_max_cut_qaoa_circuit(
+            vertices, edges, beta, gamma, use_logical_qubits, verbose
+        )
+        print(
+            '1-round QAOA circuit (using {}s as logical indices):'.format(
+                'qubit' if use_logical_qubits else 'integer'
+            )
+        )
         print(circuit)
 
 

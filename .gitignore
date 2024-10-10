@@ -4,6 +4,7 @@ __pycache__
 
 # ignore idea SDK
 .idea/*
+.vscode
 
 # ignore cache
 .cache/*
@@ -17,10 +18,14 @@ __pycache__
 
 # packaging
 *.egg-info/
+build/
 
 # Sphinx
 _build
-docs/generated
+rtd_docs/generated
+
+# API docs
+docs/api_docs
 
 # swap files
 *.swp
@@ -28,5 +33,20 @@ docs/generated
 # Mac only
 .DS_Store
 
-# From pytest-benchmark
-*.benchmarks/
+# From asv
+*.asv/
+
+# Ignore generated Jupyter files
+*.ipynb_checkpoints/
+
+# Ignore Bazel files
+/bazel-*
+
+# Default pycharm virtual env
+.venv/
+
+# pyenv configuration
+.python-version
+
+# notebook test output
+out
