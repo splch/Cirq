@@ -35,6 +35,34 @@ def _little_endian_to_big(value: int, bit_count: int) -> int:
     )
 
 
+def _normalize_shots(raw):
+    """Normalize an IonQ shots response into a flat per-shot list.
+
+    The v0.4 ``results.shots.url`` endpoint currently returns a JSON
+    ``list`` of decimal-encoded measurement integers, one per shot. The
+    OpenAPI ``GetVariantResultsResponse`` schema declares the variant
+    shots endpoint as a ``dict[str, number]`` (bitstring -> count) which
+    is the same shape used for the histogram and probabilities
+    endpoints. We accept both: a dict is expanded into a flat list with
+    each bitstring repeated by its count, so downstream code can iterate
+    one measurement per element either way. Per-shot ordering is
+    preserved for the list shape and lost for the dict shape.
+
+    Args:
+        raw: The decoded JSON body returned by ``_IonQClient.get_shots``.
+
+    Returns:
+        A flat list of measurement values (each either ``str`` or
+        ``int``), one per shot.
+    """
+    if isinstance(raw, dict):
+        expanded: list = []
+        for bitstring, count in raw.items():
+            expanded.extend([bitstring] * int(count))
+        return expanded
+    return list(raw)
+
+
 class Job:
     """A job created on the IonQ API.
 
@@ -270,13 +298,15 @@ class Job:
             shots_url = self._job.get("results", {}).get("shots", {}).get("url")
             if shots_url:
                 try:
-                    shotwise_results = self._client.get_shots(shots_url)
+                    raw_shots = self._client.get_shots(shots_url)
                 except ionq_exceptions.IonQException as exc:
                     warnings.warn(
                         f"Failed to retrieve shotwise output ({exc}); falling back "
                         "to probability-resampled measurements.",
                         stacklevel=2,
                     )
+                else:
+                    shotwise_results = _normalize_shots(raw_shots)
 
         backend_results = self._client.get_results(
             job_id=self.job_id(), sharpen=sharpen, extra_query_params=extra_query_params

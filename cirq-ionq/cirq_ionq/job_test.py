@@ -578,6 +578,36 @@ def test_shotwise_missing_url_falls_back():
     mock_client.get_shots.assert_not_called()
 
 
+def test_shotwise_dict_shape_expanded_into_flat_shots():
+    # OpenAPI's GetVariantResultsResponse declares the shots payload as
+    # ``{type: object, additionalProperties: {type: number}}`` - i.e. a
+    # bitstring->count histogram. Today the live top-level endpoint
+    # returns a JSON array instead, but if the server is ever updated to
+    # match the spec, we must expand the histogram into a per-shot list.
+    mock_client = mock.MagicMock()
+    mock_client.get_results.return_value = {'0': '0.6', '3': '0.4'}
+    mock_client.get_shots.return_value = {'0': 3, '3': 2}  # spec-shape
+    job_dict = {
+        'id': 'my_id',
+        'status': 'completed',
+        'stats': {'qubits': '2'},
+        'backend': 'qpu',
+        'metadata': {
+            'shots': 5,
+            'measurements': json.dumps([{'measurement0': f'results{chr(31)}0,1'}]),
+        },
+        'results': {'shots': {'url': '/v0.4/jobs/my_id/results/shots'}},
+    }
+    job = ionq.Job(mock_client, job_dict)
+    result = job.results()
+    cirq_result = result.to_cirq_result()
+    # bitstring '0' (q0=0, q1=0) appears 3 times; bitstring '3' (q0=1, q1=1)
+    # appears 2 times. Ordering of dict iteration determines the row order
+    # but the multiset of measurements must be exactly {3x [0,0], 2x [1,1]}.
+    rows = [tuple(row) for row in cirq_result.measurements["results"].tolist()]
+    assert sorted(rows) == sorted([(0, 0)] * 3 + [(1, 1)] * 2)
+
+
 def test_shotwise_fetch_failure_warns_and_falls_back():
     # If the shots URL is present but the GET fails, emit a warning and use
     # the probability-resampling fallback. We must not bubble the exception.

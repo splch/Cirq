@@ -32,7 +32,7 @@ class QPUResult:
         counts: dict[int, int],
         num_qubits: int,
         measurement_dict: dict[str, Sequence[int]],
-        shotwise_results: list[int] | None = None,
+        shotwise_results: Sequence[int | str] | None = None,
     ):
         # We require a consistent ordering, and here we use bitvector as such.
         # OrderedDict can be removed in python 3.7, where it is part of the contract.
@@ -187,7 +187,7 @@ class SimulatorResult:
         num_qubits: int,
         measurement_dict: dict[str, Sequence[int]],
         repetitions: int,
-        shotwise_results: list[int] | None = None,
+        shotwise_results: Sequence[int | str] | None = None,
     ):
         self._probabilities = probabilities
         self._num_qubits = num_qubits

@@ -253,32 +253,43 @@ class _IonQClient:
 
         return self._make_request(request, {}).json()
 
-    def get_shots(self, shots_url: str) -> list:
-        """Get per-shot measurement outcomes from the IonQ API.
+    def get_shots(self, shots_url: str) -> list | dict:
+        """Fetch per-shot measurement outcomes for a completed job.
 
-        The IonQ v0.4 API returns shots URLs as paths under the same host
-        as the rest of the API, e.g. ``/v0.4/jobs/<uuid>/results/shots``.
-        The response body is a JSON array of strings, one per shot, each
-        encoding a measurement outcome as a little-endian integer
-        (qubit ``i`` occupies bit position ``i``).
+        Follows the URL given in a completed job's ``results.shots.url``
+        field (declared in the OpenAPI v0.4 ``CircuitJobResult`` schema).
+        The URL is either an absolute URL or a path relative to the API
+        host (typically ``/v0.4/jobs/<uuid>/results/shots``); both are
+        accepted.
+
+        The OpenAPI v0.4 spec declares the variant-level shots response
+        (``GetVariantResultsResponse``) as a ``dict[str, number]``, but
+        the top-level shots endpoint currently returns a ``list`` of
+        decimal-encoded measurement integers (little-endian, qubit ``i``
+        at bit position ``i``). Both shapes are returned verbatim from
+        this method; callers (e.g. :class:`cirq_ionq.Job`) are
+        responsible for normalizing them into a flat per-shot sequence.
 
         Args:
             shots_url: The shots URL returned in the job's
-                ``results.shots.url`` field. Either a path beginning with
-                ``/`` or an absolute URL is accepted.
+                ``results.shots.url`` field.
 
         Returns:
-            The decoded JSON body of the shots endpoint - a list of
-            measurement integers (typically as strings).
+            The decoded JSON body of the shots endpoint, as either a
+            ``list`` of per-shot measurements or a ``dict[str, number]``
+            histogram, depending on the server's response shape.
 
         Raises:
             IonQException: For API call failures.
         """
-        if shots_url.startswith(("http://", "https://")):
-            full_url = shots_url
-        else:
-            # Strip leading slash to avoid double-slashes in the joined URL.
-            full_url = f"{self.url_base}/{shots_url.lstrip('/')}"
+        # ``urljoin`` correctly handles all three real-world cases:
+        #   * absolute URL (presigned blob, future-proofing)        -> kept as-is
+        #   * path with leading slash  ('/v0.4/jobs/...')           -> host + path
+        #   * path without leading slash ('v0.4/jobs/...')          -> host + '/' + path
+        # The trailing slash on ``url_base + '/'`` is required for the
+        # leading-slash and no-leading-slash relative cases to compose
+        # against the host root rather than against ``self.url``.
+        full_url = urllib.parse.urljoin(self.url_base + '/', shots_url)
 
         def request():
             return requests.get(full_url, headers=self.headers)
