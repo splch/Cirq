@@ -257,17 +257,26 @@ class Job:
                 f'Job was not completed successfully. Instead had status: {self.status()}'
             )
 
+        # The v0.4 API populates results.shots.url only for jobs whose backend
+        # actually produced per-shot data: any QPU, plus the simulator when it
+        # ran with a non-ideal noise model. For ideal simulator jobs the field
+        # is absent and we keep the legacy probability-resampling code path.
         shotwise_results = None
+        noise_model = self._job.get("noise", {}).get("model")
         retrieve_shotwise_result = self.target().startswith('qpu') or (
-            "noise" in self._job
-            and "model" in self._job["noise"]
-            and self._job["noise"]["model"] != "ideal"
+            noise_model is not None and noise_model != "ideal"
         )
         if retrieve_shotwise_result:
-            try:
-                shotwise_results = self._client.get_shots(self._job["results"]["shots"]["url"])
-            except:
-                pass
+            shots_url = self._job.get("results", {}).get("shots", {}).get("url")
+            if shots_url:
+                try:
+                    shotwise_results = self._client.get_shots(shots_url)
+                except ionq_exceptions.IonQException as exc:
+                    warnings.warn(
+                        f"Failed to retrieve shotwise output ({exc}); falling back "
+                        "to probability-resampled measurements.",
+                        stacklevel=2,
+                    )
 
         backend_results = self._client.get_results(
             job_id=self.job_id(), sharpen=sharpen, extra_query_params=extra_query_params

@@ -143,19 +143,19 @@ class QPUResult:
 
         measurements = {}
         if self._shotwise_results is not None:
+            # Raw shots from the v0.4 /results/shots endpoint are little-endian
+            # integers (qubit i is bit position i). Project onto the selected
+            # qubits with a per-bit shift rather than truncating the int to
+            # len(targets) bits, which would silently drop high qubits when a
+            # measurement key covers a strict subset of the circuit's qubits.
             for key, targets in self.measurement_dict().items():
-                bits = [
-                    list(cirq.big_endian_int_to_bits(int(x), bit_count=len(targets)))[::-1]
-                    for x in self._shotwise_results
-                ]
+                bits = [[(int(x) >> t) & 1 for t in targets] for x in self._shotwise_results]
                 measurements[key] = np.array(bits)
         else:
             for key, targets in self.measurement_dict().items():
                 qpu_results = self.ordered_results(key)
                 measurements[key] = np.array(
-                    list(
-                        cirq.big_endian_int_to_bits(x, bit_count=len(targets)) for x in qpu_results
-                    )
+                    [cirq.big_endian_int_to_bits(x, bit_count=len(targets)) for x in qpu_results]
                 )
 
         return cirq.ResultDict(params=params or cirq.ParamResolver({}), measurements=measurements)
@@ -287,11 +287,9 @@ class SimulatorResult:
 
         measurements = {}
         if self._shotwise_results is not None:
+            # See QPUResult.to_cirq_result for the endianness/projection rationale.
             for key, targets in self.measurement_dict().items():
-                bits = [
-                    list(cirq.big_endian_int_to_bits(int(x), bit_count=len(targets)))[::-1]
-                    for x in self._shotwise_results
-                ]
+                bits = [[(int(x) >> t) & 1 for t in targets] for x in self._shotwise_results]
                 measurements[key] = np.array(bits)
         else:
             rand = cirq.value.parse_random_state(seed)
