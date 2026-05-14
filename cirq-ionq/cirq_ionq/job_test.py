@@ -592,3 +592,29 @@ def test_shotwise_fetch_failure_warns_and_falls_back():
         result = job.results()
     cirq_result = result.to_cirq_result()
     assert cirq_result.measurements["results"].tolist() == [[0, 0], [0, 0], [0, 0]]
+
+
+def test_shotwise_skipped_when_sharpen_set():
+    # `sharpen` aggregates across debiasing variants and is mutually exclusive
+    # with raw per-shot data. When the caller asks for sharpening, skip the
+    # extra shots fetch entirely.
+    mock_client = mock.MagicMock()
+    mock_client.get_results.return_value = {'0': '0.6', '3': '0.4'}
+    job_dict = {
+        'id': 'my_id',
+        'status': 'completed',
+        'stats': {'qubits': '2'},
+        'backend': 'qpu',
+        'metadata': {
+            'shots': 5,
+            'measurements': json.dumps([{'measurement0': f'results{chr(31)}0,1'}]),
+        },
+        'results': {'shots': {'url': '/v0.4/jobs/my_id/results/shots'}},
+    }
+    job = ionq.Job(mock_client, job_dict)
+    result = job.results(sharpen=True)
+    mock_client.get_shots.assert_not_called()
+    mock_client.get_results.assert_called_once_with(
+        job_id='my_id', sharpen=True, extra_query_params=None
+    )
+    assert result.shotwise_results() is None

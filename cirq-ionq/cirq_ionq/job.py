@@ -259,9 +259,14 @@ class Job:
 
         # results.shots.url is only populated for QPU jobs and noisy-simulator
         # jobs; ideal-simulator jobs fall through to probability resampling.
+        # Skip when `sharpen` is set: sharpen aggregates across variants, and
+        # raw per-shot data does not honor it.
         shotwise_results = None
         noise_model = self._job.get("noise", {}).get("model")
-        if self.target().startswith('qpu') or (noise_model and noise_model != "ideal"):
+        wants_shots = sharpen is None and (
+            self.target().startswith('qpu') or (noise_model and noise_model != "ideal")
+        )
+        if wants_shots:
             shots_url = self._job.get("results", {}).get("shots", {}).get("url")
             if shots_url:
                 try:
