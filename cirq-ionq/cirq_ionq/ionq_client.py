@@ -253,42 +253,22 @@ class _IonQClient:
 
         return self._make_request(request, {}).json()
 
-    def get_shots(self, shots_url: str) -> list | dict:
+    def get_shots(self, shots_url: str) -> list:
         """Fetch per-shot measurement outcomes for a completed job.
 
-        Follows the URL given in a completed job's ``results.shots.url``
-        field (declared in the OpenAPI v0.4 ``CircuitJobResult`` schema).
-        The URL is either an absolute URL or a path relative to the API
-        host (typically ``/v0.4/jobs/<uuid>/results/shots``); both are
-        accepted.
-
-        The OpenAPI v0.4 spec declares the variant-level shots response
-        (``GetVariantResultsResponse``) as a ``dict[str, number]``, but
-        the top-level shots endpoint currently returns a ``list`` of
-        decimal-encoded measurement integers (little-endian, qubit ``i``
-        at bit position ``i``). Both shapes are returned verbatim from
-        this method; callers (e.g. :class:`cirq_ionq.Job`) are
-        responsible for normalizing them into a flat per-shot sequence.
+        Follows the URL in the job's ``results.shots.url`` field. The
+        URL may be absolute or a path relative to the API host.
 
         Args:
-            shots_url: The shots URL returned in the job's
-                ``results.shots.url`` field.
+            shots_url: URL from the job's ``results.shots.url`` field.
 
         Returns:
-            The decoded JSON body of the shots endpoint, as either a
-            ``list`` of per-shot measurements or a ``dict[str, number]``
-            histogram, depending on the server's response shape.
+            A list of decimal-encoded measurement integers, one per
+            shot (little-endian, qubit ``i`` at bit position ``i``).
 
         Raises:
             IonQException: For API call failures.
         """
-        # ``urljoin`` correctly handles all three real-world cases:
-        #   * absolute URL (presigned blob, future-proofing)        -> kept as-is
-        #   * path with leading slash  ('/v0.4/jobs/...')           -> host + path
-        #   * path without leading slash ('v0.4/jobs/...')          -> host + '/' + path
-        # The trailing slash on ``url_base + '/'`` is required for the
-        # leading-slash and no-leading-slash relative cases to compose
-        # against the host root rather than against ``self.url``.
         full_url = urllib.parse.urljoin(self.url_base + '/', shots_url)
 
         def request():

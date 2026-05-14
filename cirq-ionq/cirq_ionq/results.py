@@ -140,14 +140,9 @@ class QPUResult:
                 'Can convert to cirq results only if the circuit had measurement gates '
                 'with measurement keys.'
             )
-
         measurements = {}
         if self._shotwise_results is not None:
-            # Raw shots from the v0.4 /results/shots endpoint are little-endian
-            # integers (qubit i is bit position i). Project onto the selected
-            # qubits with a per-bit shift rather than truncating the int to
-            # len(targets) bits, which would silently drop high qubits when a
-            # measurement key covers a strict subset of the circuit's qubits.
+            # Raw shots are little-endian: qubit i is at bit position i.
             for key, targets in self.measurement_dict().items():
                 bits = [[(int(x) >> t) & 1 for t in targets] for x in self._shotwise_results]
                 measurements[key] = np.array(bits)
@@ -157,7 +152,6 @@ class QPUResult:
                 measurements[key] = np.array(
                     [cirq.big_endian_int_to_bits(x, bit_count=len(targets)) for x in qpu_results]
                 )
-
         return cirq.ResultDict(params=params or cirq.ParamResolver({}), measurements=measurements)
 
     def __eq__(self, other):
@@ -287,19 +281,17 @@ class SimulatorResult:
 
         measurements = {}
         if self._shotwise_results is not None:
-            # See QPUResult.to_cirq_result for the endianness/projection rationale.
             for key, targets in self.measurement_dict().items():
                 bits = [[(int(x) >> t) & 1 for t in targets] for x in self._shotwise_results]
                 measurements[key] = np.array(bits)
         else:
             rand = cirq.value.parse_random_state(seed)
-            values, weights = zip(*list(self.probabilities().items()))
+            values, weights = zip(*self.probabilities().items())
             # normalize weights to sum to 1 if within tolerance because
             # IonQ's pauliexp gates results are not extremely precise
             total = sum(weights)
             if np.isclose(total, 1.0, rtol=0, atol=1e-5):
                 weights = tuple(w / total for w in weights)
-
             indices = rand.choice(
                 range(len(values)), p=weights, size=override_repetitions or self.repetitions()
             )

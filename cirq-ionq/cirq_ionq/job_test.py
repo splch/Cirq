@@ -459,8 +459,7 @@ def test_job_fields_update_status():
 
 
 def test_shotwise_job_results_ideal_simulator():
-    # Ideal simulator: no shots URL is fetched even if results.shots.url is
-    # present, so we fall back to probability resampling.
+    # Ideal simulator should skip the shots fetch and resample probabilities.
     mock_client = mock.MagicMock()
     mock_client.get_results.return_value = {'0': '1'}
     job_dict = {
@@ -483,8 +482,6 @@ def test_shotwise_job_results_ideal_simulator():
 
 
 def test_shotwise_job_results_noisy_simulator():
-    # Shots come back as a JSON array of strings, little-endian encoded.
-    # For 2 qubits: '0'=|00>, '1'=q0=1 -> |10>, '2'=q1=1 -> |01>, '3'=|11>.
     mock_client = mock.MagicMock()
     mock_client.get_results.return_value = {'0': '0.6', '1': '0.4'}
     mock_client.get_shots.return_value = ['2', '1', '3', '1', '0']
@@ -528,12 +525,9 @@ def test_shotwise_job_results_qpu():
 
 
 def test_shotwise_partial_qubit_measurement():
-    # 3-qubit circuit, but the measurement key only spans qubits 0 and 2.
-    # Shots are little-endian: '5'=0b101 -> q0=1, q1=0, q2=1; '6'=0b110 ->
-    # q0=0, q1=1, q2=1; '1'=0b001 -> q0=1, q1=0, q2=0; '4'=0b100 -> q0=0,
-    # q1=0, q2=1. Projecting onto targets [0, 2] gives [[q0, q2], ...].
-    # This case catches a former bug where the integer was truncated to
-    # len(targets) bits instead of projected onto the selected qubits.
+    # Measurement key spans qubits [0, 2] only. Shots are little-endian:
+    # '5'=0b101 -> q0=1,q2=1; '6'=0b110 -> q0=0,q2=1; '1'=0b001 -> q0=1,q2=0;
+    # '4'=0b100 -> q0=0,q2=1.
     mock_client = mock.MagicMock()
     mock_client.get_results.return_value = {'5': '0.5', '6': '0.5'}
     mock_client.get_shots.return_value = ['5', '6', '1', '4']
@@ -555,9 +549,7 @@ def test_shotwise_partial_qubit_measurement():
 
 
 def test_shotwise_missing_url_falls_back():
-    # When results.shots.url is absent we must not raise; instead, fall back
-    # to probability resampling. This is the current state for some backends
-    # and the historical state for all jobs before shotwise output shipped.
+    # Jobs without results.shots.url must fall back, not raise.
     mock_client = mock.MagicMock()
     mock_client.get_results.return_value = {'0': '1'}
     job_dict = {
@@ -578,39 +570,7 @@ def test_shotwise_missing_url_falls_back():
     mock_client.get_shots.assert_not_called()
 
 
-def test_shotwise_dict_shape_expanded_into_flat_shots():
-    # OpenAPI's GetVariantResultsResponse declares the shots payload as
-    # ``{type: object, additionalProperties: {type: number}}`` - i.e. a
-    # bitstring->count histogram. Today the live top-level endpoint
-    # returns a JSON array instead, but if the server is ever updated to
-    # match the spec, we must expand the histogram into a per-shot list.
-    mock_client = mock.MagicMock()
-    mock_client.get_results.return_value = {'0': '0.6', '3': '0.4'}
-    mock_client.get_shots.return_value = {'0': 3, '3': 2}  # spec-shape
-    job_dict = {
-        'id': 'my_id',
-        'status': 'completed',
-        'stats': {'qubits': '2'},
-        'backend': 'qpu',
-        'metadata': {
-            'shots': 5,
-            'measurements': json.dumps([{'measurement0': f'results{chr(31)}0,1'}]),
-        },
-        'results': {'shots': {'url': '/v0.4/jobs/my_id/results/shots'}},
-    }
-    job = ionq.Job(mock_client, job_dict)
-    result = job.results()
-    cirq_result = result.to_cirq_result()
-    # bitstring '0' (q0=0, q1=0) appears 3 times; bitstring '3' (q0=1, q1=1)
-    # appears 2 times. Ordering of dict iteration determines the row order
-    # but the multiset of measurements must be exactly {3x [0,0], 2x [1,1]}.
-    rows = [tuple(row) for row in cirq_result.measurements["results"].tolist()]
-    assert sorted(rows) == sorted([(0, 0)] * 3 + [(1, 1)] * 2)
-
-
 def test_shotwise_fetch_failure_warns_and_falls_back():
-    # If the shots URL is present but the GET fails, emit a warning and use
-    # the probability-resampling fallback. We must not bubble the exception.
     from cirq_ionq import ionq_exceptions
 
     mock_client = mock.MagicMock()
